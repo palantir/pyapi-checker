@@ -1,11 +1,3 @@
-palantir_aliases:
-  - &always-run
-    filters:
-      branches:
-        only: /.*/
-      tags:
-        only: /.*/
-
 version: 2.1
 
 commands:
@@ -121,27 +113,3 @@ jobs:
     resource_class: small
     steps:
       - run: { command: echo "All required jobs finished successfully" }
-
-workflows:
-  version: 2
-  build:
-    jobs:
-      - check:
-          <<: *always-run
-      - build:
-          <<: *always-run
-      - circle-all:
-          requires:
-          - check
-          - build
-          filters:
-            tags:
-              only: /.*/
-      - publish:
-          requires:
-          - circle-all
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /.*/
