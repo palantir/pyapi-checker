@@ -1,0 +1,115 @@
+version: 2.1
+
+commands:
+  setup:
+    description: Setup
+    steps:
+      - checkout
+      - run:
+          name: delete_unrelated_tags
+          command: |
+            ALL_TAGS=$(git tag --points-at HEAD)
+
+            if [ -z "$ALL_TAGS" ]; then
+                echo "No-op as there are no tags on the current commit ($(git rev-parse HEAD))"
+                exit 0
+            fi
+
+            if [ -z "${CIRCLE_TAG:+x}" ]; then
+                echo "Non-tag build, deleting all tags which point to HEAD: [${ALL_TAGS/$'\n'/,}]"
+                echo "$ALL_TAGS" | while read -r TAG; do git tag -d "$TAG" 1>/dev/null; done
+                exit 0
+            fi
+
+            TAGS_TO_DELETE=$(echo "$ALL_TAGS" | grep -v "^$CIRCLE_TAG$" || :)
+            if [ -z "$TAGS_TO_DELETE" ]; then
+                echo "No-op as exactly one tag ($CIRCLE_TAG) points to HEAD"
+                exit 0
+            fi
+
+            echo "Detected tag build, deleting all tags except '$CIRCLE_TAG' which point to HEAD: [${TAGS_TO_DELETE/$'\n'/,}]"
+            echo "$TAGS_TO_DELETE" | while read -r TAG; do git tag -d "$TAG" 1>/dev/null; done
+
+  run-all-hatchw:
+    parameters:
+      command:
+        type: string
+      command_name:
+        type: string
+        default: << parameters.command >>
+      no_output_timeout:
+        type: string
+        default: 10m
+    steps:
+      - run:
+          name: << parameters.command_name >>
+          command: << parameters.command >>
+          no_output_timeout: << parameters.no_output_timeout >>
+
+  pytest:
+    description: Run pytest
+    steps:
+      - run-all-hatchw:
+          command_name: Run pytest
+          command: ./hatchw run test
+          no_output_timeout: 30m
+      - store_artifacts: { path: ./build/pytest-results, destination: pytest-results }
+      - store_test_results: { path: ./build/pytest-results }
+
+  check-format:
+    description: Checks format of package
+    steps:
+      - run-all-hatchw:
+          command_name: Check code formatting
+          command: ./hatchw run check-format
+
+  build:
+    description: Build package
+    steps:
+      - run-all-hatchw:
+          command_name: Build package and other distributions
+          command: ./hatchw run build
+
+  publish:
+    description: Publish
+    steps:
+      - run-all-hatchw:
+          command_name: Initialize hatch root environments
+          command: ./hatchw run default:python --version
+      - run-all-hatchw:
+          command_name: Publish package
+          command: ./hatchw publish build/dist
+
+jobs:
+  check:
+    docker: [{ image: cimg/python:3.12 }]
+    resource_class: medium
+    steps:
+      - setup
+      - check-format
+      - pytest
+
+  build:
+    docker: [{ image: cimg/python:3.12 }]
+    resource_class: medium
+    steps:
+      - setup
+      - build
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/build/dist
+
+  publish:
+    docker: [{ image: cimg/python:3.12 }]
+    resource_class: medium
+    steps:
+      - setup
+      - attach_workspace: { at: ~/ }
+      - publish
+
+  circle-all:
+    docker: [{ image: cimg/base }]
+    resource_class: small
+    steps:
+      - run: { command: echo "All required jobs finished successfully" }

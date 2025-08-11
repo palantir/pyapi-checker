@@ -1,0 +1,171 @@
+#!/bin/bash
+# hatch wrapper
+
+set -e
+
+# External package pins.
+HATCH_VERSION=1.14.1
+UV_VERSION=0.7.14
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+DOT_HATCH_DIR=$SCRIPT_DIR/.hatch
+HATCH_PALANTIR_DIR=$DOT_HATCH_DIR/palantir
+
+first_non_option_arg=""
+HATCH_ARGS=()
+
+# Parse command line options.
+for arg in "$@"
+do
+    case $arg in
+        --hatchw-quiet)
+            export HATCHW_QUIET=true
+            shift
+            ;;
+        *)
+            if [ -z "$first_non_option_arg" ] && [[ $arg != -* ]]; then
+                first_non_option_arg="$arg"
+            fi
+            HATCH_ARGS+=("$arg")
+            shift
+            ;;
+    esac
+done
+
+warning() {
+    echo -e "\033[1;33mWARNING:\033[0m $1"
+}
+
+function maybe_echo() {
+    if [[ -z $HATCHW_QUIET || $HATCHW_QUIET == "false" || $HATCHW_QUIET == "0" ]]; then
+        echo "$1"
+    fi
+}
+
+function create_python_symlinks_to_uv_managed_interpreters() {
+    LOCALBIN="${HOME}/.local/bin"
+    mkdir -p "$LOCALBIN"
+    UVDIR=$(uv python dir)
+
+    export PATH="$LOCALBIN":"$PATH"
+
+    # Create symlinks for pythonX.Y to uv-managed Pythons
+    for ITEM in "${UVDIR}"/*
+    do
+        BASEITEM=$(basename "${ITEM}")
+
+        FULLVERSION=$(echo "${BASEITEM}" | cut -d'-' -f 2)
+        MINORVERSION=$(echo "${FULLVERSION}" | rev | cut -f 2- -d '.' | rev)
+        DEST="${LOCALBIN}/python${MINORVERSION}"
+
+        if [[ -L "${DEST}" ]]
+        then
+            if [[ -e "${DEST}" ]]
+            then
+                # echo "${DEST} already exists and is valid. Nothing to do."
+                continue
+            else
+                # echo "${DEST} already exists but is broken. Removing."
+                rm "${DEST}"
+            fi
+        fi
+
+        rm -rf "${DEST}"
+        ln -sfn "${UVDIR}/${BASEITEM}/bin/python${MINORVERSION}" "${DEST}"
+        # echo "${DEST} created."
+    done
+}
+
+function trim_patch_version {
+    echo "$1" | rev | cut -d'.' -f2- | rev
+}
+
+function maybe_recreate_root_environment {
+    # Only create root env when the corresponding dir/file doesn't exist or it's using a different python version (up to minor) or we are in CI.
+    if [[ ! -d "$ROOT_ENV_DIR" || "$(trim_patch_version "$($ROOT_ENV_DIR/bin/python --version 2>&1 | sed 's/Python //g')")" != "$DEFAULT_PYTHON_VERSION" ]]; then
+        rm -rf "$ROOT_ENV_DIR"
+        maybe_echo "Creating root virtual environment..."
+        uv venv "$ROOT_ENV_DIR" --python "$DEFAULT_PYTHON_VERSION" -q
+    fi
+}
+
+# Install uv. Unmanaged install will specify where to install uv and will not modify shell profiles
+# to make sure uv is on PATH.
+export CARGO_HOME="$HATCH_PALANTIR_DIR"/.cargo
+
+# If uv hasn't been installed or is a different version than UV_VERSION, install it.
+if [[ ! -f $CARGO_HOME/bin/uv || $("$CARGO_HOME"/bin/uv --version | awk '{print $2}') != "$UV_VERSION" ]]; then
+    maybe_echo "Installing uv..."
+    
+    curl -LsSf https://astral.sh/uv/"$UV_VERSION"/install.sh | env UV_UNMANAGED_INSTALL="$CARGO_HOME"/bin INSTALLER_PRINT_QUIET="$HATCHW_QUIET" sh
+fi
+# Put uv on our PATH.
+export PATH="$CARGO_HOME"/bin:"$PATH"
+
+# Check if ~/.local is writable as that is where uv will attempt to install python.
+LOCAL_DIR="$HOME/.local"
+if [ -d "$LOCAL_DIR" -a ! -w "$LOCAL_DIR" ]; then
+    echo "Your ~/.local directory is not writable, cannot install python via uv. Please 'chown' ~/.local to your current user and try again."
+    exit 1
+fi
+
+uv python install 3.9 3.10 3.11 3.12 3.13 -q
+DEFAULT_PYTHON_VERSION=$(uv python find | awk -F'python' '{print $NF}')
+
+create_python_symlinks_to_uv_managed_interpreters
+
+ROOT_ENV_DIR="$DOT_HATCH_DIR"/data/root-env
+HATCH_PROJECT_NAME=$(basename "$SCRIPT_DIR")
+tmp_dir="${TMPDIR:-/tmp}"
+
+if [ ! -w "$tmp_dir" ]; then
+    echo "Temporary directory '$tmp_dir' is not writable."
+    exit 1
+fi
+
+ROOT_ENV_LOCK_FILE="$tmp_dir/$HATCH_PROJECT_NAME.lock"
+
+# Use flock to prevent concurrent root environment creation across multiple hatchw processes, mostly for CI.
+# The locking mechanism works by:
+# 1. Running the critical section in a subshell ( ... ) with fd 200 attached to the lock file
+# 2. Inside the subshell, acquiring an exclusive lock on file descriptor 200 with flock -x 200
+# 3. Running the critical section (maybe_recreate_root_environment) while holding the lock
+# 4. Automatically releasing both the lock and file descriptor when the subshell exits or crashes
+if command -v flock >/dev/null 2>&1; then
+    (
+        flock -x 200
+        maybe_recreate_root_environment
+    ) 200>"$ROOT_ENV_LOCK_FILE"
+else
+    maybe_recreate_root_environment
+fi
+source "$ROOT_ENV_DIR"/bin/activate -q
+
+maybe_echo "Configuring root environment dependencies..."
+uv pip install -q hatch==$HATCH_VERSION uv==$UV_VERSION
+
+HATCH_CONFIG_GENERATED=$HATCH_PALANTIR_DIR/hatch-config.toml
+if [ -f "$SCRIPT_DIR"/hatch-config.toml ]; then
+    export HATCH_CONFIG=$SCRIPT_DIR/hatch-config.toml
+else
+    export HATCH_CONFIG=$HATCH_CONFIG_GENERATED
+    if [ ! -f "$HATCH_CONFIG_GENERATED" ]; then
+        mkdir -p "$HATCH_PALANTIR_DIR"
+        touch "$HATCH_CONFIG_GENERATED"
+    fi
+fi
+
+export HATCH_DATA_DIR=$DOT_HATCH_DIR/data
+export HATCH_CACHE_DIR=$DOT_HATCH_DIR/cache
+# Other parts of hatchw are made to be agnostic of current working directory, but hatch needs to be run in the
+# directory of the project.
+cd "$SCRIPT_DIR"
+
+if [ -n "$first_non_option_arg" ] && [ "$first_non_option_arg" == "test" ]; then
+    warning "The 'test' command is intended to be executed within the correct virtualenv using the 'run' subcommand. Please use 'hatchw run test' instead."
+fi
+if [ ${#HATCH_ARGS[@]} -gt 1 ] && [ "${HATCH_ARGS[0]}" == "run" ] && [ "${HATCH_ARGS[1]}" == "python" ]; then
+    warning "Detected use of a Python interpreter from an unexpected environment. If this is unintentional, please use 'hatchw run dev:python' instead."
+fi
+
+hatch "${HATCH_ARGS[@]}"

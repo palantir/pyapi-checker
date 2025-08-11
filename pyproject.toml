@@ -1,0 +1,138 @@
+[project]
+name = "pyapi-checker"
+description = "Tool for checking for breaking changes in Python APIs"
+readme = "README.md"
+requires-python = ">=3.12"
+dynamic = ["version"]
+authors = [
+  { name = "Benjamin Lowry", email = "benjaminpaullowry.appdev@gmail.com" },
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+  "aexpy",
+  "pip",
+  "tomli",
+  "typer",
+  "pydantic",
+  "PyYAML",
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[project.scripts]
+pyapi = "pyapi.cli:app"
+
+[project.urls]
+"Source code" = "https://github.com/palantir/pyapi-checker"
+
+[tool.hatch.build]
+directory = "build/dist"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pyapi/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyapi/"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+search_parent_directories = true
+git_describe_command = "git describe --tags --always --first-parent --abbrev=7 --dirty"
+
+[tool.hatch.envs.default]
+skip-install = true
+installer = "uv"
+
+[tool.hatch.envs.default.scripts]
+check-format = [
+  "hatch run dev:check-format",
+  "hatch run dev:check-mypy",
+]
+format = [
+  "hatch run dev:format",
+]
+test = [
+  "hatch run test:test-commands",
+]
+build = [
+  "hatch build",
+]
+
+[tool.hatch.envs.dev]
+skip-install = false
+dependencies = [
+  "mypy==1.16.1",
+  "ruff==0.11.8",
+  "importlib_resources",
+  "pytest",
+  "types-PyYAML",
+]
+
+[tool.hatch.envs.dev.scripts]
+check-format = [
+  "ruff format --check pyapi tests",
+  "ruff check pyapi tests",
+]
+check-mypy = [
+  "mypy pyapi tests",
+]
+format = [
+  "ruff format pyapi tests",
+  "ruff check --fix pyapi tests",
+]
+
+[tool.hatch.envs.test]
+skip-install = false
+dependencies = [
+  "pytest==8.4.1",
+  "pytest-html==4.1.1",
+  "importlib_resources",
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.12", "3.13"]
+
+[tool.hatch.envs.test.scripts]
+test-commands = [
+  "hatch run pytest",
+]
+
+[tool.ruff]
+line-length = 120
+cache-dir = "build/.ruff_cache"
+exclude = ["pyapi/_version.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.mypy]
+exclude = ["pyapi/_version.py"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "aexpy.models.difference"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--junitxml=./build/pytest-results/pytest-results.xml --html=./build/pytest-results/pytest-results.html"
+cache_dir = "build/.pytest_cache"
+testpaths = ["tests"]
+
+[tool.setuptools_scm]
+search_parent_directories = true
+
+[build-system]
+requires = [
+  "hatchling==1.27.0",
+  "hatch-vcs==0.5.0",
+]
+build-backend = "hatchling.build"
