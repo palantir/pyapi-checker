@@ -86,7 +86,7 @@ commands:
           command: ./hatchw run default:python --version
       - run-all-hatchw:
           command_name: Publish package
-          command: ./hatchw publish build/dist
+          command: HATCH_INDEX_USER=$PYPI_USERNAME HATCH_INDEX_AUTH=$PYPI_PASSWORD ./hatchw publish build/dist
 
 jobs:
   check:
