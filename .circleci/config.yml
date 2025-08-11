@@ -1,3 +1,11 @@
+palantir_aliases:
+  - &always-run
+    filters:
+      branches:
+        only: /.*/
+      tags:
+        only: /.*/
+
 version: 2.1
 
 commands:
@@ -46,12 +54,21 @@ commands:
           command: << parameters.command >>
           no_output_timeout: << parameters.no_output_timeout >>
 
+  check-parallelism:
+    description: Check if the provided level of parallelism is valid for the set of python versions
+    steps:
+      - run-all-hatchw:
+          command_name: Check parallelism
+          command: | # Retrieve the minor versions hatch is testing against and create a bash array containing them.
+            PYTHON_TEST_VERSIONS=($(./hatchw env show --json | grep test.py | jq -r 'to_entries | map(select(.key | startswith("test.py"))) | .[].key | sub("test\\.py"; "")'))
+            echo "export PYTHON_TEST_VERSIONS=(${PYTHON_TEST_VERSIONS[*]})" >> $BASH_ENV
+
   pytest:
     description: Run pytest
     steps:
       - run-all-hatchw:
           command_name: Run pytest
-          command: ./hatchw run test
+          command: if [ $CIRCLE_NODE_INDEX -lt ${#PYTHON_TEST_VERSIONS[@]} ]; then ./hatchw env run -i py=${PYTHON_TEST_VERSIONS[$CIRCLE_NODE_INDEX]} -e test test-commands; fi
           no_output_timeout: 30m
       - store_artifacts: { path: ./build/pytest-results, destination: pytest-results }
       - store_test_results: { path: ./build/pytest-results }
@@ -78,16 +95,24 @@ commands:
           command: ./hatchw run default:python --version
       - run-all-hatchw:
           command_name: Publish package
-          command: ./hatchw publish build/dist
+          command: HATCH_INDEX_USER=$PYPI_USERNAME HATCH_INDEX_AUTH=$PYPI_PASSWORD ./hatchw publish build/dist
 
 jobs:
   check:
     docker: [{ image: cimg/python:3.12 }]
     resource_class: medium
+    parallelism: 2
+    steps:
+      - setup
+      - check-parallelism
+      - pytest
+
+  check-format:
+    docker: [{ image: cimg/python:3.12 }]
+    resource_class: medium
     steps:
       - setup
       - check-format
-      - pytest
 
   build:
     docker: [{ image: cimg/python:3.12 }]
@@ -109,7 +134,34 @@ jobs:
       - publish
 
   circle-all:
-    docker: [{ image: cimg/base }]
+    docker: [{ image: busybox:1.34.1 }]
     resource_class: small
     steps:
       - run: { command: echo "All required jobs finished successfully" }
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - check:
+          <<: *always-run
+      - check-format:
+          <<: *always-run
+      - build:
+          <<: *always-run
+      - circle-all:
+          requires:
+          - check
+          - check-format
+          - build
+          filters:
+            tags:
+              only: /.*/
+      - publish:
+          requires:
+          - circle-all
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /.*/
