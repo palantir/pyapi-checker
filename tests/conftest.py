@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import shutil
 import os
+import shutil
 from pathlib import Path
 from subprocess import run
 from typing import Any, Iterator
@@ -23,10 +23,11 @@ from unittest.mock import Mock, patch
 
 import importlib_resources
 import pytest
+from pytest import TempPathFactory
 
 
 @pytest.fixture(scope="session")
-def pyapi_lib_wheel(tmp_path_factory: Path) -> Path:
+def pyapi_lib_wheel(tmp_path_factory: TempPathFactory) -> Path:
     session_dir = tmp_path_factory.mktemp("session_tmp_dir")
     project_dir = session_dir / "test-pyapi-lib"
 
@@ -37,7 +38,6 @@ def pyapi_lib_wheel(tmp_path_factory: Path) -> Path:
     env.pop("HATCH_ENV_ACTIVE", None)
     run(["./hatchw", "build"], cwd=project_dir, check=True, env=env)
     built_wheel = project_dir / "dist" / "test_pyapi_lib-1.0.0-py3-none-any.whl"
-    print(built_wheel)
     assert built_wheel.exists()
     return built_wheel
 
