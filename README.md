@@ -77,3 +77,16 @@ index = "<your-index-url>"
 `pyapi-checker` uses [aexpy](https://github.com/StardustDL/aexpy) to power it's API breakage detection. You can check out the list of types of API breaks that `aexpy` detects [here](https://github.com/StardustDL/aexpy/blob/main/docs/change-spec/description.md).
 
 _Note: `aexpy` does not consider any breaks to an __internal__ module, function, attribute, etc. a high priority breaking change and thus we will not flag these breaks to you._
+
+## Developer Setup
+
+This repo uses `hatchw` which is a wrapper around [Hatch](https://github.com/pypa/hatch) which automatically installs Python (versions 3.9-3.13) (via uv) and Hatch in a repo-specific venv such that this repo uses Hatch in an isolated manner.
+
+`hatchw` essentially passes all args to Hatch and so with our scripts in the `pyproject.toml` file the workflows are intended to be the following:
+
+1. Run tests: `./hatchw run test`
+2. Check formatting/linting/type checking: `./hatchw run check-format`
+3. Format/fix linting issues: `./hatchw run format`
+4. Build package `./hatchw run build`
+
+If you want to disable any output produced by `hatchw` itself pass the `--hatchw-quiet` flag which is not propagated to Hatch.
