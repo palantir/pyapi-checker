@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import shutil
+import os
 from pathlib import Path
 from subprocess import run
 from typing import Any, Iterator
@@ -24,8 +25,25 @@ import importlib_resources
 import pytest
 
 
+@pytest.fixture(scope="session")
+def pyapi_lib_wheel(tmp_path_factory: Path) -> Path:
+    session_dir = tmp_path_factory.mktemp("session_tmp_dir")
+    project_dir = session_dir / "test-pyapi-lib"
+
+    shutil.copytree(str(importlib_resources.files("tests").joinpath("test-pyapi-lib")), project_dir)
+
+    shutil.copy2(Path(__file__).parent.parent / "hatchw", project_dir)
+    env = os.environ.copy()
+    env.pop("HATCH_ENV_ACTIVE", None)
+    run(["./hatchw", "build"], cwd=project_dir, check=True, env=env)
+    built_wheel = project_dir / "dist" / "test_pyapi_lib-1.0.0-py3-none-any.whl"
+    print(built_wheel)
+    assert built_wheel.exists()
+    return built_wheel
+
+
 @pytest.fixture()
-def test_lib(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
+def test_lib(tmp_path: Path, pyapi_lib_wheel: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
     current_git_version: bytes = getattr(request, "param", {}).get("current_git_version", b"1.0.0-3-g0a549f3")
 
     project_dir = tmp_path / "test-pyapi-lib"
@@ -52,7 +70,7 @@ def test_lib(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
             elif command[:3] == ["python3", "-m", "pip"]:
                 download_dir = Path(command[-1])
                 shutil.copy(
-                    str(importlib_resources.files("tests").joinpath("test_pyapi_lib-1.0.0-py3-none-any.whl")),
+                    pyapi_lib_wheel,
                     download_dir,
                 )
                 return mock_process
