@@ -87,6 +87,6 @@ This repo uses `hatchw` which is a wrapper around [Hatch](https://github.com/pyp
 1. Run tests: `./hatchw run test`
 2. Check formatting/linting/type checking: `./hatchw run check-format`
 3. Format/fix linting issues: `./hatchw run format`
-4. Build package `./hatchw run build`
+4. Build package: `./hatchw run build`
 
 If you want to disable any output produced by `hatchw` itself pass the `--hatchw-quiet` flag which is not propagated to Hatch.
