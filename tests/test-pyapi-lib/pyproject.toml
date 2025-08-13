@@ -7,9 +7,6 @@ version = "1.0.0"
 [tool.hatchw]
 package-name = "test_pyapi_lib"
 
-[tool.hatch.build]
-sdist = false
-
 [tool.hatch.envs.default]
 skip-install = true
 installer = "uv"

@@ -36,7 +36,7 @@ def pyapi_lib_wheel(tmp_path_factory: TempPathFactory) -> Path:
     shutil.copy2(Path(__file__).parent.parent / "hatchw", project_dir)
     env = os.environ.copy()
     env.pop("HATCH_ENV_ACTIVE", None)
-    run(["./hatchw", "build"], cwd=project_dir, check=True, env=env)
+    run(["./hatchw", "build", "-t", "wheel"], cwd=project_dir, check=True, env=env)
     built_wheel = project_dir / "dist" / "test_pyapi_lib-1.0.0-py3-none-any.whl"
     assert built_wheel.exists()
     return built_wheel
