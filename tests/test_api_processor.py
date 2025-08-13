@@ -76,8 +76,10 @@ def test_check_api_public_member_of_test_package_does_not_cause_break(test_lib: 
         output_path.read_text().replace("def __init__(self) -> None:", "def __init__(self, description: str) -> None:")
     )
 
-    # This would cause a break if the `tests` package was analyzed because in the current source
-    # `OutputHandler` would be considered public due to its import in `tests`.
+    # This technically wouldn't be a break even if we analyzed the "tests" package with the current
+    # source because the tests package wouldn't exist in the wheel so "OutputHandler" would be considered
+    # private in the wheel and thus doesn't matter if it's public and/or modified in the source.
+    # But check this anyway for redundancy.
     assert set(processor.check_api("1.0.0")) == set()
 
     # Check we're indeed passing the package name to aexpy.
