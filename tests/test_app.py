@@ -96,7 +96,7 @@ def test_analyze_with_multiple_breaks(test_lib: tuple[Path, MagicMock], monkeypa
     animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
-        .replace('def meow(self) -> None:\n        print("meow")', "")
+        .replace('def meow(self) -> None:\n        return self._vocalize("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
     app = PyAPIApplication(test_lib_path)
@@ -198,7 +198,7 @@ def test_accept_break_with_multiple_breaks(test_lib: tuple[Path, MagicMock], mon
     animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
-        .replace('def meow(self) -> None:\n        print("meow")', "")
+        .replace('def meow(self) -> None:\n        return self._vocalize("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
     pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
@@ -314,7 +314,7 @@ def test_accept_all_breaks_with_multiple_breaks(test_lib: tuple[Path, MagicMock]
     animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
-        .replace('def meow(self) -> None:\n        print("meow")', "")
+        .replace('def meow(self) -> None:\n        return self._vocalize("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
     pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
