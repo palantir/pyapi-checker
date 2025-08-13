@@ -6,3 +6,11 @@ version = "1.0.0"
 
 [tool.hatchw]
 package-name = "test_pyapi_lib"
+
+[tool.hatch.envs.default]
+skip-install = true
+installer = "uv"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
