@@ -61,7 +61,7 @@ class PyAPIApplication:
             or os.getenv(UV_DEFAULT_INDEX_ENV_VAR)
             or PYPI_INDEX_URL
         )
-        self._processor = AexpyAPIProcessor(self._project_dir, self._project_name, self._index)
+        self._processor = AexpyAPIProcessor(self._project_dir, self._project_name, self._index, self._config.top_level_packages)
         self._pyapi_yml_path = self._repo_root / PYAPI_YML_PATH
 
     @cached_property

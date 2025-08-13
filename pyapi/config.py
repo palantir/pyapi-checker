@@ -21,3 +21,4 @@ from pydantic.dataclasses import dataclass
 @dataclass
 class PyAPICheckerConfig:
     index: str | None = Field(default=None)
+    top_level_packages: list[str] | None = Field(alias="top-level-packages", default=None)
