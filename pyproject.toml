@@ -115,7 +115,7 @@ exclude = ["pyapi/_version.py"]
 extend-select = ["I"]
 
 [tool.mypy]
-exclude = ["pyapi/_version.py"]
+exclude = ["pyapi/_version.py", "tests/test-pyapi-lib"]
 strict = true
 
 [[tool.mypy.overrides]]

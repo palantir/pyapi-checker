@@ -17,6 +17,7 @@ limitations under the License.
 import sys
 from io import StringIO
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from pytest import MonkeyPatch
@@ -26,8 +27,9 @@ from pyapi.color import ANSIColor
 from pyapi.constants import PYAPI_YML_FILENAME, PYAPI_YML_PATH
 
 
-def test_analyze_no_code_change(test_lib: Path) -> None:
-    app = PyAPIApplication(test_lib)
+def test_analyze_no_code_change(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -39,9 +41,10 @@ def test_analyze_no_code_change(test_lib: Path) -> None:
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_analyze_no_breaks(test_lib: Path) -> None:
-    app = PyAPIApplication(test_lib)
-    animals_path = test_lib / "test_pyapi_lib/animals.py"
+def test_analyze_no_breaks(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    app = PyAPIApplication(test_lib_path)
+    animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text().replace(
             'def meow(self) -> None:\n        print("meow")',
@@ -59,11 +62,12 @@ def test_analyze_no_breaks(test_lib: Path) -> None:
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_analyze_with_break(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_analyze_with_break(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.delenv("CI", raising=False)
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -84,17 +88,18 @@ def test_analyze_with_break(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_analyze_with_multiple_breaks(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_analyze_with_multiple_breaks(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.setenv("CI", "true")
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: str, b: str)", "(a: int)"))
-    animals_path = test_lib / "test_pyapi_lib/animals.py"
+    animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
         .replace('def meow(self) -> None:\n        print("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -119,11 +124,12 @@ def test_analyze_with_multiple_breaks(test_lib: Path, monkeypatch: MonkeyPatch) 
 
 
 @pytest.mark.parametrize("test_lib", [{"current_git_version": b"1.0.0"}], indirect=True)
-def test_analyze_on_release_version(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_analyze_on_release_version(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.setenv("CI", "true")
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: str, b: str)", "(a: int)"))
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -138,11 +144,12 @@ def test_analyze_on_release_version(test_lib: Path, monkeypatch: MonkeyPatch) ->
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_analyze_with_version_override(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_analyze_with_version_override(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.setenv("CI", "true")
-    app = PyAPIApplication(test_lib)
-    pyapi_yml_file = test_lib / ".." / PYAPI_YML_PATH
-    (test_lib / ".." / ".palantir").mkdir()
+    app = PyAPIApplication(test_lib_path)
+    pyapi_yml_file = test_lib_path / ".." / PYAPI_YML_PATH
+    (test_lib_path / ".." / ".palantir").mkdir()
     pyapi_yml_file.write_text("acceptedBreaks: {}\nversionOverrides:\n  1.0.0: 0.9.0\n")
 
     captured_output = StringIO()
@@ -163,12 +170,13 @@ def test_analyze_with_version_override(test_lib: Path, monkeypatch: MonkeyPatch)
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_accept_break_with_break(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_break_with_break(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
     assert not pyapi_yml_path.exists()
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_break(
         "AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.",
@@ -182,19 +190,20 @@ def test_accept_break_with_break(test_lib: Path) -> None:
     )
 
 
-def test_accept_break_with_multiple_breaks(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_accept_break_with_multiple_breaks(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.setenv("CI", "true")
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: str, b: str)", "(a: int)"))
-    animals_path = test_lib / "test_pyapi_lib/animals.py"
+    animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
         .replace('def meow(self) -> None:\n        print("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
     assert not pyapi_yml_path.exists()
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_break(
         "RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow",
@@ -210,7 +219,7 @@ def test_accept_break_with_multiple_breaks(test_lib: Path, monkeypatch: MonkeyPa
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
 
-    app = PyAPIApplication(test_lib)  # Recreate app for new command.
+    app = PyAPIApplication(test_lib_path)  # Recreate app for new command.
     with pytest.raises(SystemExit) as cm:
         app.analyze()
 
@@ -229,10 +238,11 @@ def test_accept_break_with_multiple_breaks(test_lib: Path, monkeypatch: MonkeyPa
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_accept_break_that_is_already_accepted(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_break_that_is_already_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    palantir_path = test_lib / ".." / ".palantir"
+    palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
     pyapi_yml_text = (
@@ -240,7 +250,7 @@ def test_accept_break_that_is_already_accepted(test_lib: Path) -> None:
         "      justification: previous acceptance\nversionOverrides: {}\n"
     )
     pyapi_yml_path.write_text(pyapi_yml_text)
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -260,11 +270,12 @@ def test_accept_break_that_is_already_accepted(test_lib: Path) -> None:
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_accept_break_invalid_break(test_lib: Path, monkeypatch: MonkeyPatch) -> None:
+def test_accept_break_invalid_break(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
+    test_lib_path, _ = test_lib
     monkeypatch.delenv("CI", raising=False)
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -279,12 +290,13 @@ def test_accept_break_invalid_break(test_lib: Path, monkeypatch: MonkeyPatch) ->
     )
 
 
-def test_accept_all_breaks_with_break(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_all_breaks_with_break(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
     assert not pyapi_yml_path.exists()
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_all_breaks("basic justification")
 
@@ -295,18 +307,19 @@ def test_accept_all_breaks_with_break(test_lib: Path) -> None:
     )
 
 
-def test_accept_all_breaks_with_multiple_breaks(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_all_breaks_with_multiple_breaks(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: str, b: str)", "(a: int)"))
-    animals_path = test_lib / "test_pyapi_lib/animals.py"
+    animals_path = test_lib_path / "test_pyapi_lib/animals.py"
     animals_path.write_text(
         animals_path.read_text()
         .replace('def meow(self) -> None:\n        print("meow")', "")
         .replace("is_mammal: bool = True", "is_mammal: bool")
     )
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
     assert not pyapi_yml_path.exists()
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_all_breaks("these are all irrelevant")
 
@@ -320,10 +333,11 @@ def test_accept_all_breaks_with_multiple_breaks(test_lib: Path) -> None:
     )
 
 
-def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-    palantir_path = test_lib / ".." / ".palantir"
+    palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
     pyapi_yml_path.write_text(
@@ -333,7 +347,7 @@ def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: Path) -> N
             "versionOverrides: {}\n"
         )
     )
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_all_breaks("basic justification")
 
@@ -345,12 +359,13 @@ def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: Path) -> N
     )
 
 
-def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: Path) -> None:
-    functions_path = test_lib / "test_pyapi_lib/functions.py"
+def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: 'str')"))
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
     assert not pyapi_yml_path.exists()
-    app = PyAPIApplication(test_lib)
+    app = PyAPIApplication(test_lib_path)
 
     app.accept_all_breaks("another justification")
 
@@ -361,8 +376,9 @@ def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: Pa
     )
 
 
-def test_accept_all_breaks_no_breaks(test_lib: Path) -> None:
-    app = PyAPIApplication(test_lib)
+def test_accept_all_breaks_no_breaks(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    app = PyAPIApplication(test_lib_path)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -374,9 +390,10 @@ def test_accept_all_breaks_no_breaks(test_lib: Path) -> None:
     sys.stdout = sys.__stdout__  # Reset stdout
 
 
-def test_version_overrides_writes_overrides(test_lib: Path) -> None:
-    app = PyAPIApplication(test_lib)
-    pyapi_yml_path = test_lib / ".." / PYAPI_YML_PATH
+def test_version_overrides_writes_overrides(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    app = PyAPIApplication(test_lib_path)
+    pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
 
     app.version_override("0.9.0")
     assert pyapi_yml_path.read_text() == "acceptedBreaks: {}\nversionOverrides:\n  1.0.0: 0.9.0\n"

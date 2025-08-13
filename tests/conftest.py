@@ -19,7 +19,7 @@ import shutil
 from pathlib import Path
 from subprocess import run
 from typing import Any, Iterator
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import importlib_resources
 import pytest
@@ -43,7 +43,7 @@ def pyapi_lib_wheel(tmp_path_factory: TempPathFactory) -> Path:
 
 
 @pytest.fixture()
-def test_lib(tmp_path: Path, pyapi_lib_wheel: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
+def test_lib(tmp_path: Path, pyapi_lib_wheel: Path, request: pytest.FixtureRequest) -> Iterator[tuple[Path, MagicMock]]:
     current_git_version: bytes = getattr(request, "param", {}).get("current_git_version", b"1.0.0-3-g0a549f3")
 
     project_dir = tmp_path / "test-pyapi-lib"
@@ -79,4 +79,4 @@ def test_lib(tmp_path: Path, pyapi_lib_wheel: Path, request: pytest.FixtureReque
 
         mock_run.side_effect = mock_different_calls
 
-        yield project_dir
+        yield project_dir, mock_run
