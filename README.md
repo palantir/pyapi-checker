@@ -1,3 +1,7 @@
+<p align="right">
+<a href="https://autorelease.general.dmz.palantir.tech/palantir/pyapi-checker"><img src="https://img.shields.io/badge/Perform%20an-Autorelease-success.svg" alt="Autorelease"></a>
+</p>
+
 ## About pyapi-checker
 
 Tool for checking for and acknowledging Python API breaking changes. Inspired by [gradle-revapi](https://github.com/revapi/gradle-revapi) and built with the [aexpy](https://github.com/StardustDL/aexpy) API explorer.
