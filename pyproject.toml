@@ -115,7 +115,7 @@ exclude = ["pyapi/_version.py"]
 extend-select = ["I"]
 
 [tool.mypy]
-exclude = ["pyapi/_version.py"]
+exclude = ["pyapi/_version.py", "tests/test-pyapi-lib"]
 strict = true
 
 [[tool.mypy.overrides]]
@@ -123,7 +123,7 @@ module = "aexpy.models.difference"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-addopts = "--junitxml=./build/pytest-results/pytest-results.xml --html=./build/pytest-results/pytest-results.html"
+addopts = "--junitxml=./build/pytest-results/pytest-results.xml --html=./build/pytest-results/pytest-results.html --ignore=tests/test-pyapi-lib"
 cache_dir = "build/.pytest_cache"
 testpaths = ["tests"]
 

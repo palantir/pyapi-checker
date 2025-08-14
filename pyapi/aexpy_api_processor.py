@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import json
+from enum import Enum
 from pathlib import Path
 from subprocess import CalledProcessError
 from typing import Any
@@ -24,6 +25,13 @@ from aexpy.models.difference import BreakingRank
 from .api_processor import APIProcessor, CannotFindAPIVersionError
 from .constants import PYAPI_BUILD_DIR
 from .utils import run
+
+SOURCE_VERSION_STR = "source"
+
+
+class PreprocessMode(Enum):
+    WHEEL = "-w"
+    SOURCE = "-s"
 
 
 class AexpyAPIProcessor(APIProcessor):
@@ -35,10 +43,12 @@ class AexpyAPIProcessor(APIProcessor):
 
     def check_api(self, previous_version: str) -> list[str]:
         wheel = self._download_wheel(self._project_path.name, previous_version)
-        preprocessed_output = self._preprocess()
-        extracted1 = self._extract_from_wheel(wheel, previous_version)
-        extracted2 = self._extract_from_preprocessed(preprocessed_output)
-        diff_output = self._diff(extracted1, extracted2, previous_version)
+        preprocessed_wheel = self._preprocess_wheel(wheel, previous_version)
+        top_level_packages_from_wheel = self._get_top_level_packages_from_preprocessed(preprocessed_wheel)
+        preprocessed_source = self._preprocess_source(top_level_packages_from_wheel)
+        extracted_wheel = self._extract_from_preprocessed_wheel(preprocessed_wheel, previous_version)
+        extracted_source = self._extract_from_preprocessed_source(preprocessed_source)
+        diff_output = self._diff(extracted_wheel, extracted_source, previous_version)
         return self._parse_diff(diff_output)
 
     def _download_wheel(self, package_name: str, version: str) -> Path:
@@ -78,24 +88,59 @@ class AexpyAPIProcessor(APIProcessor):
             raise RuntimeError(f"Multiple wheels found after download for {package_name} {version} in {download_dir}.")
         raise CannotFindAPIVersionError(f"Failed to download {package_name} {version} from Python index.")
 
-    def _preprocess(self) -> Path:
-        preprocessed_output = self._build_dir / f"preprocessed-{self._project_path.name}-source.json"
-        self._run_aexpy(["preprocess", "-s", str(self._project_path), str(preprocessed_output)])
+    def _preprocess_wheel(self, distribution: Path, version: str) -> Path:
+        return self._preprocess(PreprocessMode.WHEEL, distribution, version)
+
+    def _preprocess_source(self, top_level_packages: list[str]) -> Path:
+        return self._preprocess(PreprocessMode.SOURCE, self._project_path, SOURCE_VERSION_STR, top_level_packages)
+
+    def _preprocess(
+        self, mode: PreprocessMode, input: Path, version_str: str, top_level_packages: list[str] | None = None
+    ) -> Path:
+        preprocessed_output = self._build_dir / f"preprocessed-{self._project_path.name}-{version_str}.json"
+        command = ["preprocess", mode.value, str(input), str(preprocessed_output)]
+        if top_level_packages:
+            command.extend([item for package in top_level_packages for item in ["-m", package]])
+        self._run_aexpy(command)
         return preprocessed_output
 
-    def _extract_from_preprocessed(self, preprocessed_output: Path) -> Path:
-        extracted_output = self._build_dir / f"extracted-{self._project_path.name}-source.json"
-        self._run_aexpy(["extract", str(preprocessed_output), str(extracted_output)])
-        return extracted_output
+    def _get_top_level_packages_from_preprocessed(self, preprocessed_output: Path) -> list[str]:
+        preprocessed_json = json.loads(preprocessed_output.read_text())
+        maybe_top_level_packages = preprocessed_json.get("topModules")
+        if not maybe_top_level_packages:
+            raise FailedToProcessPreviousAPIError(
+                f"Could not get field 'topModules' from preprocessed output file: {preprocessed_output}"
+            )
+        if not isinstance(maybe_top_level_packages, list) or not all(
+            isinstance(package, str) for package in maybe_top_level_packages
+        ):
+            raise FailedToProcessPreviousAPIError(
+                f"The value of 'topModules' in the preprocessed output file is not a list of strings: {preprocessed_output}"
+            )
+        return maybe_top_level_packages
 
-    def _extract_from_wheel(self, distribution: Path, version: str) -> Path:
-        extracted_output = self._build_dir / f"extracted-{self._project_path.name}-{version}.json"
-        if extracted_output.exists():
-            return extracted_output
-        # Remove previous extracted json files from wheels.
-        for file in self._build_dir.glob(f"extracted-{self._project_path.name}-*.*.*.json"):
-            file.unlink()
-        self._run_aexpy(["extract", "-w", str(distribution), str(extracted_output)])
+    def _extract_from_preprocessed_source(self, preprocessed_output: Path) -> Path:
+        return self._extract_from_preprocessed(preprocessed_output, SOURCE_VERSION_STR)
+
+    def _extract_from_preprocessed_wheel(self, preprocessed_output: Path, version: str) -> Path:
+        return self._extract_from_preprocessed(
+            preprocessed_output, version, f"extracted-{self._project_path.name}-*.*.*.json"
+        )
+
+    # Passing a file_cleanup_glob means that the output is cached and thus if already exists is used
+    # and not recomputed and otherwise all files matching the glob are removed and then the output is
+    # recomputed. Not passing it means no caching or cleanup and output is always recomputed.
+    def _extract_from_preprocessed(
+        self, preprocessed_output: Path, version_str: str, file_cleanup_glob: str | None = None
+    ) -> Path:
+        extracted_output = self._build_dir / f"extracted-{self._project_path.name}-{version_str}.json"
+        if file_cleanup_glob:
+            if extracted_output.exists():
+                return extracted_output
+            # Remove previous extracted json files from wheels.
+            for file in self._build_dir.glob(file_cleanup_glob):
+                file.unlink()
+        self._run_aexpy(["extract", str(preprocessed_output), str(extracted_output)])
         return extracted_output
 
     def _diff(self, extracted1: Path, extracted2: Path, version: str) -> Path:
@@ -134,3 +179,7 @@ class AexpyAPIProcessor(APIProcessor):
 
     def _run_python_module(self, args: list[str]) -> None:
         run(["python3", "-m"] + args)
+
+
+class FailedToProcessPreviousAPIError(Exception):
+    pass

@@ -1,3 +1,7 @@
+from ._output import OutputHandler as _OutputHandler
+from ._output import Utils
+
+
 class Animal:
     def __init__(self, num_of_legs: int, is_mammal: bool = True) -> None:
         self.num_of_legs = num_of_legs
@@ -13,6 +17,11 @@ class Animal:
 class Cat(Animal):
     def __init__(self) -> None:
         super().__init__(4)
+        self._output_handler = _OutputHandler()
+        self._foo_res = Utils.foo()
 
     def meow(self) -> None:
-        print("meow")
+        return self._vocalize("meow")
+
+    def _vocalize(self, sound: str) -> None:
+        self._output_handler.print(sound)
