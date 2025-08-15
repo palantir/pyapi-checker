@@ -399,43 +399,209 @@ def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: tuple[Path
     """)
 
 
-# def test_accept_all_breaks_with_break_and_newer_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
-#     test_lib_path, _ = test_lib
-#     functions_path = test_lib_path / "test_pyapi_lib/functions.py"
-#     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
-#     palantir_path = test_lib_path / ".." / ".palantir"
-#     palantir_path.mkdir(parents=True)
-#     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-#     pyapi_yml_path.write_text(dedent("""
-#     acceptedBreaks:
-#       0.9.0:
-#         test-pyapi-lib:
-#         - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
-#           justification: no purrs allowed
-#       1.1.0:
-#         test-pyapi-lib:
-#         - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
-#           justification: previous acceptance
-#     """.strip()))
+def test_accept_all_breaks_with_break_and_older_and_newer_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+    functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+    palantir_path = test_lib_path / ".." / ".palantir"
+    palantir_path.mkdir(parents=True)
+    pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+    pyapi_yml_path.write_text(dedent("""\
+    acceptedBreaks:
+      0.9.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      1.1.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """))
 
-#     pyapi_yml_path.write_text(
-#         (
+    app = PyAPIApplication(test_lib_path)
 
-#             "acceptedBreaks:\n  0.9.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
-#             "  1.1.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
-#             "versionOverrides: {}\n"
-#         )
-#     )
-#     app = PyAPIApplication(test_lib_path)
+    app.accept_all_breaks("basic justification")
 
-#     app.accept_all_breaks("basic justification")
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      0.9.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+      1.1.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """)
 
-#     assert pyapi_yml_path.read_text() == (
-#         "acceptedBreaks:\n  0.191.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
-#         "  1.0.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
-#         "    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n      justification: basic justification\n"
-#         "versionOverrides: {}\n"
-#     )
+
+def test_accept_all_breaks_with_break_and_newer_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+    functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+    palantir_path = test_lib_path / ".." / ".palantir"
+    palantir_path.mkdir(parents=True)
+    pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+    pyapi_yml_path.write_text(dedent("""\
+    acceptedBreaks:
+      1.0.1:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      5.302.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """))
+
+    app = PyAPIApplication(test_lib_path)
+
+    app.accept_all_breaks("basic justification")
+
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+      1.0.1:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      5.302.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """)
+
+
+def test_accept_all_breaks_with_break_and_older_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+    functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+    palantir_path = test_lib_path / ".." / ".palantir"
+    palantir_path.mkdir(parents=True)
+    pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+    pyapi_yml_path.write_text(dedent("""\
+    acceptedBreaks:
+      0.1.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      0.999.999:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """))
+
+    app = PyAPIApplication(test_lib_path)
+
+    app.accept_all_breaks("basic justification")
+
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      0.1.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      0.999.999:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+    versionOverrides: {}
+    """)
+
+
+def test_accept_all_breaks_with_break_and_other_projects_for_same_version(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+    functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+    palantir_path = test_lib_path / ".." / ".palantir"
+    palantir_path.mkdir(parents=True)
+    pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+    pyapi_yml_path.write_text(dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        other-test-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+        very-cool-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+    versionOverrides: {}
+    """))
+
+    app = PyAPIApplication(test_lib_path)
+
+    app.accept_all_breaks("basic justification")
+
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        other-test-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+        very-cool-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+    versionOverrides: {}
+    """)
+
+
+def test_accept_all_breaks_with_break_and_other_projects_on_different_version(test_lib: tuple[Path, MagicMock]) -> None:
+    test_lib_path, _ = test_lib
+    functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+    functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+    palantir_path = test_lib_path / ".." / ".palantir"
+    palantir_path.mkdir(parents=True)
+    pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+    pyapi_yml_path.write_text(dedent("""\
+    acceptedBreaks:
+      0.9.0:
+        other-test-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+        very-cool-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+    versionOverrides: {}
+    """))
+
+    app = PyAPIApplication(test_lib_path)
+
+    app.accept_all_breaks("basic justification")
+
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      0.9.0:
+        other-test-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+        very-cool-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+    versionOverrides: {}
+    """)
 
 
 def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: tuple[Path, MagicMock]) -> None:
