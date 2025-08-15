@@ -17,6 +17,7 @@ limitations under the License.
 import sys
 from io import StringIO
 from pathlib import Path
+from textwrap import dedent
 from unittest.mock import MagicMock
 
 import pytest
@@ -76,14 +77,15 @@ def test_analyze_with_break(test_lib: tuple[Path, MagicMock], monkeypatch: Monke
         app.analyze()
 
     assert cm.value.code == 1
-    assert captured_output.getvalue() == (
-        f"{ANSIColor.RED_UNDERLINED.value}\nPython API breaks found in test-pyapi-lib:{ANSIColor.NO_COLOR.value}\n"
-        f"{ANSIColor.RED_HIGH_INTENSITY.value}AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.{ANSIColor.NO_COLOR.value}\n"
-        "You can accept an API break via:\n"
-        f'{ANSIColor.CYAN.value}  pyapi acceptBreak "AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c." ":justification:"{ANSIColor.NO_COLOR.value}\n'
-        "or all API breaks via:\n"
-        f'{ANSIColor.CYAN.value}  pyapi acceptAllBreaks ":justification:"{ANSIColor.NO_COLOR.value}\n'
-    )
+    assert captured_output.getvalue() == dedent(f"""\
+    {ANSIColor.RED_UNDERLINED.value}
+    Python API breaks found in test-pyapi-lib:{ANSIColor.NO_COLOR.value}
+    {ANSIColor.RED_HIGH_INTENSITY.value}AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.{ANSIColor.NO_COLOR.value}
+    You can accept an API break via:
+    {ANSIColor.CYAN.value}  pyapi acceptBreak "AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c." ":justification:"{ANSIColor.NO_COLOR.value}
+    or all API breaks via:
+    {ANSIColor.CYAN.value}  pyapi acceptAllBreaks ":justification:"{ANSIColor.NO_COLOR.value}
+    """)
 
     sys.stdout = sys.__stdout__  # Reset stdout
 
@@ -108,17 +110,17 @@ def test_analyze_with_multiple_breaks(test_lib: tuple[Path, MagicMock], monkeypa
         app.analyze()
 
     assert cm.value.code == 1
-    assert captured_output.getvalue() == (
-        "\nPython API breaks found in test-pyapi-lib:\n"
-        "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.\n"
-        "RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow\n"
-        "RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.\n"
-        "ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int\n"
-        "You can accept an API break via:\n"
-        '  pyapi acceptBreak "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False." ":justification:"\n'
-        "or all API breaks via:\n"
-        '  pyapi acceptAllBreaks ":justification:"\n'
-    )
+    assert captured_output.getvalue() == dedent("""
+    Python API breaks found in test-pyapi-lib:
+    RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.
+    RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow
+    RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.
+    ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int
+    You can accept an API break via:
+      pyapi acceptBreak "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False." ":justification:"
+    or all API breaks via:
+      pyapi acceptAllBreaks ":justification:"
+    """)
 
     sys.stdout = sys.__stdout__  # Reset stdout
 
@@ -150,7 +152,11 @@ def test_analyze_with_version_override(test_lib: tuple[Path, MagicMock], monkeyp
     app = PyAPIApplication(test_lib_path)
     pyapi_yml_file = test_lib_path / ".." / PYAPI_YML_PATH
     (test_lib_path / ".." / ".palantir").mkdir()
-    pyapi_yml_file.write_text("acceptedBreaks: {}\nversionOverrides:\n  1.0.0: 0.9.0\n")
+    pyapi_yml_file.write_text(dedent("""
+    acceptedBreaks: {}
+    versionOverrides:
+      1.0.0: 0.9.0
+    """))
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -183,11 +189,14 @@ def test_accept_break_with_break(test_lib: tuple[Path, MagicMock]) -> None:
         "basic justification",
     )
 
-    assert (
-        pyapi_yml_path.read_text()
-        == "acceptedBreaks:\n  1.0.0:\n    test-pyapi-lib:\n    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n"
-        "      justification: basic justification\nversionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+    versionOverrides: {}
+    """)
 
 
 def test_accept_break_with_multiple_breaks(test_lib: tuple[Path, MagicMock], monkeypatch: MonkeyPatch) -> None:
@@ -210,11 +219,14 @@ def test_accept_break_with_multiple_breaks(test_lib: tuple[Path, MagicMock], mon
         "meow is never used",
     )
 
-    assert (
-        pyapi_yml_path.read_text()
-        == "acceptedBreaks:\n  1.0.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow'\n      justification: meow is never used\n"
-        "versionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow'
+          justification: meow is never used
+    versionOverrides: {}
+    """)
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -224,16 +236,16 @@ def test_accept_break_with_multiple_breaks(test_lib: tuple[Path, MagicMock], mon
         app.analyze()
 
     assert cm.value.code == 1
-    assert captured_output.getvalue() == (
-        "\nPython API breaks found in test-pyapi-lib:\n"
-        "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.\n"
-        "RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.\n"
-        "ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int\n"
-        "You can accept an API break via:\n"
-        '  pyapi acceptBreak "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False." ":justification:"\n'
-        "or all API breaks via:\n"
-        '  pyapi acceptAllBreaks ":justification:"\n'
-    )
+    assert captured_output.getvalue() == dedent("""
+    Python API breaks found in test-pyapi-lib:
+    RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.
+    RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.
+    ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int
+    You can accept an API break via:
+      pyapi acceptBreak "RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False." ":justification:"
+    or all API breaks via:
+      pyapi acceptAllBreaks ":justification:"
+    """)
 
     sys.stdout = sys.__stdout__  # Reset stdout
 
@@ -245,10 +257,14 @@ def test_accept_break_that_is_already_accepted(test_lib: tuple[Path, MagicMock])
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_text = (
-        "acceptedBreaks:\n  1.0.0:\n    test-pyapi-lib:\n    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n"
-        "      justification: previous acceptance\nversionOverrides: {}\n"
-    )
+    pyapi_yml_text = dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """)
     pyapi_yml_path.write_text(pyapi_yml_text)
     app = PyAPIApplication(test_lib_path)
 
@@ -300,11 +316,14 @@ def test_accept_all_breaks_with_break(test_lib: tuple[Path, MagicMock]) -> None:
 
     app.accept_all_breaks("basic justification")
 
-    assert (
-        pyapi_yml_path.read_text()
-        == "acceptedBreaks:\n  1.0.0:\n    test-pyapi-lib:\n    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n"
-        "      justification: basic justification\nversionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+    versionOverrides: {}
+    """)
 
 
 def test_accept_all_breaks_with_multiple_breaks(test_lib: tuple[Path, MagicMock]) -> None:
@@ -323,14 +342,20 @@ def test_accept_all_breaks_with_multiple_breaks(test_lib: tuple[Path, MagicMock]
 
     app.accept_all_breaks("these are all irrelevant")
 
-    assert pyapi_yml_path.read_text() == (
-        "acceptedBreaks:\n  1.0.0:\n    test-pyapi-lib:\n"
-        "    - code: 'RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.'\n      justification: these are all irrelevant\n"
-        "    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow'\n      justification: these are all irrelevant\n"
-        "    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: these are all irrelevant\n"
-        "    - code: 'ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int'\n      justification: these are all irrelevant\n"
-        "versionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'RemoveParameterDefault: Switch parameter optional (test_pyapi_lib.animals.Animal.__init__): is_mammal: True -> False.'
+          justification: these are all irrelevant
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): meow'
+          justification: these are all irrelevant
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: these are all irrelevant
+        - code: 'ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_string_add): a: builtins.str => builtins.int'
+          justification: these are all irrelevant
+    versionOverrides: {}
+    """)
 
 
 def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
@@ -341,22 +366,76 @@ def test_accept_all_breaks_with_break_and_existing_accepted(test_lib: tuple[Path
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
     pyapi_yml_path.write_text(
-        (
-            "acceptedBreaks:\n  0.191.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
-            "  1.0.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
-            "versionOverrides: {}\n"
-        )
+        dedent("""\
+    acceptedBreaks:
+      0.191.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+    versionOverrides: {}
+    """)
     )
     app = PyAPIApplication(test_lib_path)
 
     app.accept_all_breaks("basic justification")
 
-    assert pyapi_yml_path.read_text() == (
-        "acceptedBreaks:\n  0.191.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
-        "  1.0.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
-        "    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n      justification: basic justification\n"
-        "versionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      0.191.0:
+        test-pyapi-lib:
+        - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+          justification: no purrs allowed
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+          justification: previous acceptance
+        - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'
+          justification: basic justification
+    versionOverrides: {}
+    """)
+
+
+# def test_accept_all_breaks_with_break_and_newer_existing_accepted(test_lib: tuple[Path, MagicMock]) -> None:
+#     test_lib_path, _ = test_lib
+#     functions_path = test_lib_path / "test_pyapi_lib/functions.py"
+#     functions_path.write_text(functions_path.read_text().replace("(a: int, b: int)", "(a: int, b: int, c: int)"))
+#     palantir_path = test_lib_path / ".." / ".palantir"
+#     palantir_path.mkdir(parents=True)
+#     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
+#     pyapi_yml_path.write_text(dedent("""
+#     acceptedBreaks:
+#       0.9.0:
+#         test-pyapi-lib:
+#         - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
+#           justification: no purrs allowed
+#       1.1.0:
+#         test-pyapi-lib:
+#         - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
+#           justification: previous acceptance
+#     """.strip()))
+
+#     pyapi_yml_path.write_text(
+#         (
+
+#             "acceptedBreaks:\n  0.9.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
+#             "  1.1.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
+#             "versionOverrides: {}\n"
+#         )
+#     )
+#     app = PyAPIApplication(test_lib_path)
+
+#     app.accept_all_breaks("basic justification")
+
+#     assert pyapi_yml_path.read_text() == (
+#         "acceptedBreaks:\n  0.191.0:\n    test-pyapi-lib:\n    - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'\n      justification: no purrs allowed\n"
+#         "  1.0.0:\n    test-pyapi-lib:\n    - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'\n      justification: previous acceptance\n"
+#         "    - code: 'AddRequiredParameter: Add PositionalOrKeyword parameter (test_pyapi_lib.functions.special_int_subtract): c.'\n      justification: basic justification\n"
+#         "versionOverrides: {}\n"
+#     )
 
 
 def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: tuple[Path, MagicMock]) -> None:
@@ -369,11 +448,14 @@ def test_accept_all_breaks_with_break_that_has_single_quote_in_code(test_lib: tu
 
     app.accept_all_breaks("another justification")
 
-    assert pyapi_yml_path.read_text() == (
-        "acceptedBreaks:\n"
-        "  1.0.0:\n    test-pyapi-lib:\n    - code: 'ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_int_subtract): b: builtins.int => builtins.str'\n      justification: another justification\n"
-        "versionOverrides: {}\n"
-    )
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks:
+      1.0.0:
+        test-pyapi-lib:
+        - code: 'ChangeParameterType: Change parameter type (test_pyapi_lib.functions.special_int_subtract): b: builtins.int => builtins.str'
+          justification: another justification
+    versionOverrides: {}
+    """)
 
 
 def test_accept_all_breaks_no_breaks(test_lib: tuple[Path, MagicMock]) -> None:
@@ -396,7 +478,15 @@ def test_version_overrides_writes_overrides(test_lib: tuple[Path, MagicMock]) ->
     pyapi_yml_path = test_lib_path / ".." / PYAPI_YML_PATH
 
     app.version_override("0.9.0")
-    assert pyapi_yml_path.read_text() == "acceptedBreaks: {}\nversionOverrides:\n  1.0.0: 0.9.0\n"
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks: {}
+    versionOverrides:
+      1.0.0: 0.9.0
+    """)
 
     app.version_override("0.8.0")
-    assert pyapi_yml_path.read_text() == "acceptedBreaks: {}\nversionOverrides:\n  1.0.0: 0.8.0\n"
+    assert pyapi_yml_path.read_text() == dedent("""\
+    acceptedBreaks: {}
+    versionOverrides:
+      1.0.0: 0.8.0
+    """)
