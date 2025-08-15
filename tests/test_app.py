@@ -152,11 +152,13 @@ def test_analyze_with_version_override(test_lib: tuple[Path, MagicMock], monkeyp
     app = PyAPIApplication(test_lib_path)
     pyapi_yml_file = test_lib_path / ".." / PYAPI_YML_PATH
     (test_lib_path / ".." / ".palantir").mkdir()
-    pyapi_yml_file.write_text(dedent("""
+    pyapi_yml_file.write_text(
+        dedent("""
     acceptedBreaks: {}
     versionOverrides:
       1.0.0: 0.9.0
-    """))
+    """)
+    )
 
     captured_output = StringIO()
     sys.stdout = captured_output  # Redirect stdout.
@@ -406,7 +408,8 @@ def test_accept_all_breaks_with_break_and_older_and_newer_existing_accepted(test
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_path.write_text(dedent("""\
+    pyapi_yml_path.write_text(
+        dedent("""\
     acceptedBreaks:
       0.9.0:
         test-pyapi-lib:
@@ -417,7 +420,8 @@ def test_accept_all_breaks_with_break_and_older_and_newer_existing_accepted(test
         - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
           justification: previous acceptance
     versionOverrides: {}
-    """))
+    """)
+    )
 
     app = PyAPIApplication(test_lib_path)
 
@@ -448,7 +452,8 @@ def test_accept_all_breaks_with_break_and_newer_existing_accepted(test_lib: tupl
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_path.write_text(dedent("""\
+    pyapi_yml_path.write_text(
+        dedent("""\
     acceptedBreaks:
       1.0.1:
         test-pyapi-lib:
@@ -459,7 +464,8 @@ def test_accept_all_breaks_with_break_and_newer_existing_accepted(test_lib: tupl
         - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
           justification: previous acceptance
     versionOverrides: {}
-    """))
+    """)
+    )
 
     app = PyAPIApplication(test_lib_path)
 
@@ -490,7 +496,8 @@ def test_accept_all_breaks_with_break_and_older_existing_accepted(test_lib: tupl
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_path.write_text(dedent("""\
+    pyapi_yml_path.write_text(
+        dedent("""\
     acceptedBreaks:
       0.1.0:
         test-pyapi-lib:
@@ -501,7 +508,8 @@ def test_accept_all_breaks_with_break_and_older_existing_accepted(test_lib: tupl
         - code: 'RemoveRequiredParameter: Remove PositionalOrKeyword parameter (test_pyapi_lib.functions.special_string_add): b.'
           justification: previous acceptance
     versionOverrides: {}
-    """))
+    """)
+    )
 
     app = PyAPIApplication(test_lib_path)
 
@@ -532,7 +540,8 @@ def test_accept_all_breaks_with_break_and_other_projects_for_same_version(test_l
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_path.write_text(dedent("""\
+    pyapi_yml_path.write_text(
+        dedent("""\
     acceptedBreaks:
       1.0.0:
         other-test-lib:
@@ -542,7 +551,8 @@ def test_accept_all_breaks_with_break_and_other_projects_for_same_version(test_l
         - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
           justification: no purrs allowed
     versionOverrides: {}
-    """))
+    """)
+    )
 
     app = PyAPIApplication(test_lib_path)
 
@@ -571,7 +581,8 @@ def test_accept_all_breaks_with_break_and_other_projects_on_different_version(te
     palantir_path = test_lib_path / ".." / ".palantir"
     palantir_path.mkdir(parents=True)
     pyapi_yml_path = palantir_path / PYAPI_YML_FILENAME
-    pyapi_yml_path.write_text(dedent("""\
+    pyapi_yml_path.write_text(
+        dedent("""\
     acceptedBreaks:
       0.9.0:
         other-test-lib:
@@ -581,7 +592,8 @@ def test_accept_all_breaks_with_break_and_other_projects_on_different_version(te
         - code: 'RemoveMethod: Remove method (test_pyapi_lib.animals.Cat): purr'
           justification: no purrs allowed
     versionOverrides: {}
-    """))
+    """)
+    )
 
     app = PyAPIApplication(test_lib_path)
 
