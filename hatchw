@@ -4,7 +4,7 @@
 set -e
 
 # External package pins.
-HATCH_VERSION=1.14.1
+HATCH_VERSION=1.17.1
 UV_VERSION=0.7.14
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)

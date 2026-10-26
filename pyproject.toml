@@ -10,7 +10,7 @@ authors = [
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 dependencies = [
-  "aexpy",
+  "aexpy>=0.2.7,<1",
   "pip",
   "tomli",
   "typer",

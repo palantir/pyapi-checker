@@ -140,7 +140,7 @@ class AexpyAPIProcessor(APIProcessor):
             # Remove previous extracted json files from wheels.
             for file in self._build_dir.glob(file_cleanup_glob):
                 file.unlink()
-        self._run_aexpy(["extract", str(preprocessed_output), str(extracted_output)])
+        self._run_aexpy(["extract", "-j", str(preprocessed_output), str(extracted_output)])
         return extracted_output
 
     def _diff(self, extracted1: Path, extracted2: Path, version: str) -> Path:

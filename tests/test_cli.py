@@ -24,13 +24,13 @@ from pyapi.utils import run
 def test_run_cli_missing_args() -> None:
     with pytest.raises(CalledProcessError) as e:
         run(["pyapi", "acceptBreak"])
-    assert "Missing argument 'CODE'" in e.value.stderr.decode("utf-8")
+    assert "missing argument 'code'" in e.value.stderr.decode("utf-8").lower()
     with pytest.raises(CalledProcessError) as e2:
         run(["pyapi", "acceptBreak", "code"])
-    assert "Missing argument 'JUSTIFICATION'" in e2.value.stderr.decode("utf-8")
+    assert "missing argument 'justification'" in e2.value.stderr.decode("utf-8").lower()
     with pytest.raises(CalledProcessError) as e3:
         run(["pyapi", "acceptAllBreaks"])
-    assert "Missing argument 'JUSTIFICATION'" in e3.value.stderr.decode("utf-8")
+    assert "missing argument 'justification'" in e3.value.stderr.decode("utf-8").lower()
 
 
 def test_run_cli_help_message() -> None:
